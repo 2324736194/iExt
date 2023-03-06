@@ -1,0 +1,11 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net45;net461;</TargetFrameworks>
+		<RootNamespace>System</RootNamespace>
+		<Revision>$([System.DateTime]::Now.ToString("yyyy.MMdd.HHmm"))</Revision>
+		<Version>$(Revision)-preview</Version>
+		<RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
+</Project>
