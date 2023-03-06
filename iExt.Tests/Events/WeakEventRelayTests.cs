@@ -156,7 +156,16 @@ namespace System.Tests
             var events = WeakEventRelay.GetEvents<EventOwner>();
             var e = events.Single(p => p.Name == eventName);
             var relay = owner.RegisterWeakEvent(e,
-                (eOwner, eRelay) => { eOwner.OutsideDemo += (sender, args) => { eRelay.Raise(sender, args); }; });
+                (eOwner, eRelay) =>
+                {
+                    // 注册 OutsideDemo 的事件处理
+                    // 每个事件仅会注册一次，不会重复注册
+                    eOwner.OutsideDemo += (sender, args) =>
+                    {
+                        // 触发弱事件处理
+                        eRelay.Raise(sender, args);
+                    };
+                });
             var count = 3;
             var subscribers = new List<EventSubscriber>();
             for (int i = 0; i < count; i++)

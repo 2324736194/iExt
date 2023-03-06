@@ -30,13 +30,15 @@ namespace System
         /// <typeparam name="T"></typeparam>
         /// <param name="owner">事件拥有者</param>
         /// <param name="e">事件名称</param>
-        /// <param name="addAction">向事件源注册一个调用 <see cref="Raise"/> 的事件处理</param>
+        /// <param name="register">
+        /// 向事件源注册一个调用 <see cref="WeakEventRelay.Raise"/> 的事件处理
+        /// </param>
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         public static WeakEventRelay RegisterWeakEvent<T>(
             this T owner,    
-            EventInfo e,    
-            Action<T, WeakEventRelay> addAction = null)
+            EventInfo e,
+            RegisterWeakEvent<T> register = null)
         {
             if (null == owner)
             {
@@ -73,13 +75,13 @@ namespace System
                 {
                     relay = new WeakEventRelay(owner, e);
                     relays.Add(relay);
-                    addAction?.Invoke(owner, relay);
+                    register?.Invoke(owner, relay);
                 }
 
                 return relay;
             }
         }
-
+            
         /// <summary>
         /// 获取已注册的弱事件中继
         /// </summary>
@@ -112,4 +114,10 @@ namespace System
         }
 
     }
+
+    /// <summary>
+    /// 注册弱事件委托
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    public delegate void RegisterWeakEvent<in T>(T owner, WeakEventRelay relay);
 }
