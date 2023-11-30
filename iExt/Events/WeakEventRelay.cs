@@ -1,15 +1,8 @@
 ﻿using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Reflection.Emit;
-using System.Xml.Linq;
-using System.Diagnostics;
-using System.Linq;
-using System.Collections;
 
-namespace System
+namespace System.Events
 {
     /// <summary>
     /// <para>弱事件中继</para>
@@ -19,22 +12,22 @@ namespace System
     /// </summary>
     public class WeakEventRelay
     {
-        private static readonly object locker = new object();
-        private static readonly Dictionary<Type, IReadOnlyList<EventInfo>> eDictionary;
+        private static readonly object _locker = new object();
+        private static readonly Dictionary<Type, IReadOnlyList<EventInfo>> _eDictionary;
 
         /// <summary>
         /// <para>事件拥有者</para>
         /// </summary>
-        private readonly WeakReference ownerReference;
+        private readonly WeakReference _ownerReference;
         /// <summary>
         /// <para>中继的事件</para>
         /// </summary>
-        internal readonly EventInfo e;
+        internal readonly EventInfo _e;
         /// <summary>
         /// <para>事件处理函数拥有者引用</para>
         /// <para>此对象存在的意义是为了方便遍历，因为 <see cref="ConditionalWeakTable{TKey,TValue}"/> 不允许遍历</para>
         /// </summary>
-        private readonly HashSet<WeakReference> handlerOwnerReferences;
+        private readonly HashSet<WeakReference> _handlerOwnerReferences;
         /// <summary>
         /// <para>----------------------------------------------------------------------------------------</para>
         /// <para><see cref="ConditionalWeakTable{TKey,TValue}"/> 对象说明</para> 
@@ -49,16 +42,16 @@ namespace System
         /// <para>- 实例函数：事件处理函数为实例函数时，事件处理函数拥有者为实例对象。</para>
         /// <para>- 静态函数：事件处理函数为静态函数时，事件处理函数拥有者为事件源实例对象。</para>
         /// </summary>
-        private readonly ConditionalWeakTable<object, Dictionary<MethodInfo, int>> handlerTable;
+        private readonly ConditionalWeakTable<object, Dictionary<MethodInfo, int>> _handlerTable;
 
         /// <summary>
         /// 表示当前事件中继是否能继续使用
         /// </summary>
-        public bool IsEnabled => ownerReference.IsAlive;
+        public bool IsEnabled => _ownerReference.IsAlive;
         
         static WeakEventRelay()
         {
-            eDictionary = new Dictionary<Type, IReadOnlyList<EventInfo>>();
+            _eDictionary = new Dictionary<Type, IReadOnlyList<EventInfo>>();
         }
 
         /// <summary>
@@ -73,10 +66,10 @@ namespace System
         /// <exception cref="ArgumentNullException"></exception>
         internal WeakEventRelay(object owner, EventInfo eventInfo)
         {
-            e = eventInfo;
-            ownerReference = new WeakReference(owner);
-            handlerOwnerReferences = new HashSet<WeakReference>();
-            handlerTable = new ConditionalWeakTable<object, Dictionary<MethodInfo, int>>();
+            _e = eventInfo;
+            _ownerReference = new WeakReference(owner);
+            _handlerOwnerReferences = new HashSet<WeakReference>();
+            _handlerTable = new ConditionalWeakTable<object, Dictionary<MethodInfo, int>>();
         }
 
         /// <summary>
@@ -85,7 +78,7 @@ namespace System
         /// <param name="handler"></param>
         public void Add(Delegate handler)
         {
-            lock (locker)
+            lock (_locker)
             {
                 if (!IsEnabled)
                 {
@@ -108,7 +101,7 @@ namespace System
         /// </summary>
         private void HandlerOwnerReferenceClear()
         {
-            handlerOwnerReferences.RemoveWhere(p => p.IsAlive == false);
+            _handlerOwnerReferences.RemoveWhere(p => p.IsAlive == false);
         }
 
         /// <summary>
@@ -124,21 +117,21 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(handler));
             }
-            if (e.EventHandlerType != handler.GetType())
+            if (_e.EventHandlerType != handler.GetType())
             {
                 throw new ArgumentOutOfRangeException(nameof(handler));
             }
             // [handler.Target == null] 表示当前事件处理函数为静态函数
             // 静态函数的生命周期和事件源实例对象一致
             // ReSharper disable AssignNullToNotNullAttribute
-            var handlerOwner = handler.Target ?? ownerReference.Target;
-            if (!handlerTable.TryGetValue(handlerOwner, out var methods))
+            var handlerOwner = handler.Target ?? _ownerReference.Target;
+            if (!_handlerTable.TryGetValue(handlerOwner, out var methods))
             {
                 // 首次注册事件时（相对于 handlerOwner）
                 var reference = new WeakReference(handlerOwner);
                 methods = new Dictionary<MethodInfo, int>();
-                handlerOwnerReferences.Add(reference);
-                handlerTable.Add(handlerOwner, methods);
+                _handlerOwnerReferences.Add(reference);
+                _handlerTable.Add(handlerOwner, methods);
             }
 
             return methods;
@@ -150,7 +143,7 @@ namespace System
         /// <param name="handler"></param>
         public void Remove(Delegate handler)
         {
-            lock (locker)
+            lock (_locker)
             {
                 if (!IsEnabled)
                 {
@@ -173,9 +166,9 @@ namespace System
         /// <param name="parameters">事件参数</param>
         public void Raise(params object[] parameters)
         {
-            lock (locker)
+            lock (_locker)
             {
-                foreach (var reference in handlerOwnerReferences)
+                foreach (var reference in _handlerOwnerReferences)
                 {
                     if (reference.IsAlive)
                     {
@@ -193,7 +186,7 @@ namespace System
         private void Invoke(object handlerOwner, object[] parameters)
         {
             // ReSharper disable PossibleNullReferenceException
-            if (!handlerTable.TryGetValue(handlerOwner, out var methods))
+            if (!_handlerTable.TryGetValue(handlerOwner, out var methods))
             {
                 return;
             }
@@ -215,17 +208,17 @@ namespace System
         /// <returns></returns>
         public static IReadOnlyList<EventInfo> GetEvents<T>()
         {
-            lock (locker)
+            lock (_locker)
             {
                 var owner = typeof(T);
-                if (!eDictionary.ContainsKey(owner))
+                if (!_eDictionary.ContainsKey(owner))
                 {
                     var bindingAttr = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
                     var events = owner.GetEvents(bindingAttr);
-                    eDictionary.Add(owner, events);
+                    _eDictionary.Add(owner, events);
                 }
 
-                return eDictionary[owner];
+                return _eDictionary[owner];
             }
         }
     }

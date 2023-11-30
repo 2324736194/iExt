@@ -1,34 +1,31 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
-using System.Collections;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Drawing;
+using System.Events;
 using System.Linq;
-using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace System.Tests
+namespace iExt.Tests.Events
 {
     [TestClass()]
     public class WeakEventRelayTests
     {
         class EventOwner : INotifyPropertyChanged
         {
-            private readonly WeakEventRelay relayInsideDemo;
-            private readonly WeakEventRelay relayPropertyChanged;
+            private readonly WeakEventRelay _relayInsideDemo;
+            private readonly WeakEventRelay _relayPropertyChanged;
 
             public event EventHandler InsideDemo
             {
-                add { relayInsideDemo.Add(value); }
-                remove { relayInsideDemo.Remove(value); }
+                add => _relayInsideDemo.Add(value);
+                remove => _relayInsideDemo.Remove(value);
             }
 
             event PropertyChangedEventHandler INotifyPropertyChanged.PropertyChanged
             {
-                add => relayPropertyChanged.Add(value);
-                remove => relayPropertyChanged.Remove(value);
+                add => _relayPropertyChanged.Add(value);
+                remove => _relayPropertyChanged.Remove(value);
             }
 
             public event EventHandler OutsideDemo;
@@ -39,16 +36,16 @@ namespace System.Tests
                 var eventName =
                     $"{typeof(INotifyPropertyChanged).FullName}.{nameof(INotifyPropertyChanged.PropertyChanged)}";
                 var e = events.Single(p => p.Name == eventName);
-                relayPropertyChanged = this.RegisterWeakEvent(e);
+                _relayPropertyChanged = this.RegisterWeakEvent(e);
                 eventName = nameof(InsideDemo);
                 e = events.Single(p => p.Name == eventName);
-                relayInsideDemo = this.RegisterWeakEvent(e);
+                _relayInsideDemo = this.RegisterWeakEvent(e);
             }
 
             public void Raise()
             {
-                relayInsideDemo.Raise(this, EventArgs.Empty);
-                relayPropertyChanged.Raise(this, new PropertyChangedEventArgs(string.Empty));
+                _relayInsideDemo.Raise(this, EventArgs.Empty);
+                _relayPropertyChanged.Raise(this, new PropertyChangedEventArgs(string.Empty));
             }
 
             public void OnOutsideDemo()

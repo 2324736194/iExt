@@ -1,27 +1,25 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
-namespace System
+namespace System.Events
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public static class WeakEventRelayExt
     {
-        private static readonly object locker = new object();
+        private static readonly object _locker = new object();
 
         /// <summary>
         /// 外部弱事件中继表格
         /// </summary>
-        private static readonly ConditionalWeakTable<object, List<WeakEventRelay>> relayTable;
+        private static readonly ConditionalWeakTable<object, List<WeakEventRelay>> _relayTable;
         
-        private static readonly Dictionary<Type, IReadOnlyList<EventInfo>> eDictionary;
-
         static WeakEventRelayExt()
         {
-            relayTable = new ConditionalWeakTable<object, List<WeakEventRelay>>();
-            eDictionary = new Dictionary<Type, IReadOnlyList<EventInfo>>();
+            _relayTable = new ConditionalWeakTable<object, List<WeakEventRelay>>();
         }
 
         /// <summary>
@@ -38,7 +36,7 @@ namespace System
         public static WeakEventRelay RegisterWeakEvent<T>(
             this T owner,    
             EventInfo e,
-            RegisterWeakEvent<T> register = null)
+            RegisterWeakEventHandler<T> register = null)
         {
             if (null == owner)
             {
@@ -62,15 +60,15 @@ namespace System
                 throw new ArgumentOutOfRangeException(nameof(e));
             }
 
-            lock (locker)
+            lock (_locker)
             {
-                if (!relayTable.TryGetValue(owner, out var relays))
+                if (!_relayTable.TryGetValue(owner, out var relays))
                 {
                     relays = new List<WeakEventRelay>();
-                    relayTable.Add(owner, relays);
+                    _relayTable.Add(owner, relays);
                 }
 
-                var relay = relays.SingleOrDefault(p => p.e == e);
+                var relay = relays.SingleOrDefault(p => p._e == e);
                 if (null == relay)
                 {
                     relay = new WeakEventRelay(owner, e);
@@ -93,17 +91,17 @@ namespace System
         /// <exception cref="InvalidOperationException"></exception>
         public static WeakEventRelay GetRelay(object owner, EventInfo e)
         {
-            lock (locker)
+            lock (_locker)
             {
                 if (null == owner)
                 {
                     throw new ArgumentNullException(nameof(owner));
                 }
-                if (!relayTable.TryGetValue(owner, out var relays))
+                if (!_relayTable.TryGetValue(owner, out var relays))
                 {
                     throw new ArgumentOutOfRangeException(nameof(e));
                 }
-                var relay = relays.SingleOrDefault(p => p.e == e);
+                var relay = relays.SingleOrDefault(p => p._e == e);
                 if (null == relay)
                 {
                     throw new InvalidOperationException();
@@ -114,10 +112,4 @@ namespace System
         }
 
     }
-
-    /// <summary>
-    /// 注册弱事件委托
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public delegate void RegisterWeakEvent<in T>(T owner, WeakEventRelay relay);
 }

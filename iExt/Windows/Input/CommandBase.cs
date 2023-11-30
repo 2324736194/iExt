@@ -9,10 +9,10 @@ namespace System.Windows.Input
     /// </summary>
     public  abstract partial class CommandBase : ICommand
     {
-        private int count;
-        private readonly Delegate executeDelegate;
-        private readonly Delegate canExecuteDelegate;
-        private bool executing;
+        private int _count;
+        private readonly Delegate _executeDelegate;
+        private readonly Delegate _canExecuteDelegate;
+        private bool _executing;
         
         /// <summary>
         /// 是否仅执行一次
@@ -29,33 +29,33 @@ namespace System.Windows.Input
         protected CommandBase(Delegate executeDelegate, Delegate canExecuteDelegate, bool once)
         {   
             Once = once;
-            this.executeDelegate = executeDelegate ?? throw new ArgumentNullException(nameof(executeDelegate));
-            this.canExecuteDelegate = canExecuteDelegate ?? throw new ArgumentNullException(nameof(canExecuteDelegate));
+            this._executeDelegate = executeDelegate ?? throw new ArgumentNullException(nameof(executeDelegate));
+            this._canExecuteDelegate = canExecuteDelegate ?? throw new ArgumentNullException(nameof(canExecuteDelegate));
         }
 
         /// <inheritdoc />
         public virtual bool CanExecute(object parameter)
         {
-            if (executing)
+            if (_executing)
             {
                 return false;
             }
 
-            if (Once && count > 0)
+            if (Once && _count > 0)
             {
                 return false;
             }
 
-            if (null != canExecuteDelegate)
+            if (null != _canExecuteDelegate)
             {
-                var has = canExecuteDelegate.Method.GetParameters().Any();
-                var result = has? canExecuteDelegate.DynamicInvoke(parameter):
-                    canExecuteDelegate.DynamicInvoke();
+                var has = _canExecuteDelegate.Method.GetParameters().Any();
+                var result = has? _canExecuteDelegate.DynamicInvoke(parameter):
+                    _canExecuteDelegate.DynamicInvoke();
                 if (result is bool can)
                 {
                     return can;
                 }
-                throw new NotImplementedException($"{nameof(canExecuteDelegate)} 的返回值必须是 {nameof(Boolean)} 类型");
+                throw new NotImplementedException($"{nameof(_canExecuteDelegate)} 的返回值必须是 {nameof(Boolean)} 类型");
             }
             return true;
         }
@@ -65,12 +65,12 @@ namespace System.Windows.Input
         {
             try
             {
-                count++;
-                executing = true;
+                _count++;
+                _executing = true;
                 this.RaiseCanExecuteChanged();
-                var has = canExecuteDelegate.Method.GetParameters().Any();
-                var result = has ? executeDelegate.DynamicInvoke(parameter) :
-                    executeDelegate.DynamicInvoke();
+                var has = _canExecuteDelegate.Method.GetParameters().Any();
+                var result = has ? _executeDelegate.DynamicInvoke(parameter) :
+                    _executeDelegate.DynamicInvoke();
                 if (result is Task task)
                 {
                     await task;
@@ -78,7 +78,7 @@ namespace System.Windows.Input
             }
             finally
             {
-                executing = false;
+                _executing = false;
                 this.RaiseCanExecuteChanged();
             }
         }
