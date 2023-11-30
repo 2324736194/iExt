@@ -6,7 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace iExt.Tests.Events
+namespace System.Events
 {
     [TestClass()]
     public class WeakEventRelayTests
