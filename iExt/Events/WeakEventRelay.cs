@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 
 namespace System.Events
 {
@@ -78,13 +77,13 @@ namespace System.Events
                 }
                 HandlerOwnerReferenceClear();
                 var methods = GetHandlerMethods(handler);
-                var handerMethod = handler.Method;
-                if (!methods.ContainsKey(handerMethod))
+                var handlerMethod = handler.Method;
+                if (!methods.ContainsKey(handlerMethod))
                 {
-                    methods.Add(handerMethod, 0);
+                    methods.Add(handlerMethod, 0);
                 }
 
-                methods[handerMethod]++;
+                methods[handlerMethod]++;
             }
         }
 
