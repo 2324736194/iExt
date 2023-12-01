@@ -1,16 +1,11 @@
 ﻿using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace System.Events
 {
-    /// <summary>
-    /// <para>弱事件中继</para>
-    /// <para>弱事件中继都拥有唯一的事件和事件拥有者</para>
-    /// <para>同一个事件拥有者，可以对应多个事件</para>
-    /// <para>同一个事件，也可对应多个事件拥有者</para>
-    /// </summary>
-    public class WeakEventRelay
+    internal class WeakEventRelay: IWeakEventRelay
     {
         private static readonly object _locker = new object();
         private static readonly Dictionary<Type, IReadOnlyList<EventInfo>> _eDictionary;
@@ -72,10 +67,7 @@ namespace System.Events
             _handlerTable = new ConditionalWeakTable<object, Dictionary<MethodInfo, int>>();
         }
 
-        /// <summary>
-        /// 新增事件处理
-        /// </summary>
-        /// <param name="handler"></param>
+     
         public void Add(Delegate handler)
         {
             lock (_locker)
@@ -137,10 +129,6 @@ namespace System.Events
             return methods;
         }
 
-        /// <summary>
-        /// 移除事件处理
-        /// </summary>
-        /// <param name="handler"></param>
         public void Remove(Delegate handler)
         {
             lock (_locker)
@@ -151,19 +139,32 @@ namespace System.Events
                 }
                 HandlerOwnerReferenceClear();
                 var methods = GetHandlerMethods(handler);
-                var handerMethod = handler.Method;
-                if (!methods.ContainsKey(handerMethod))
+                var handlerMethod = handler.Method;
+                if (!methods.ContainsKey(handlerMethod))
                 {
                     return;
                 }
-                methods[handerMethod]--;
+                methods[handlerMethod]--;
             }
         }
 
-        /// <summary>
-        /// 引发中继事件
-        /// </summary>
-        /// <param name="parameters">事件参数</param>
+        public void Clear()
+        {
+            lock (_locker)
+            {
+                if (!IsEnabled)
+                {
+                    return;
+                }
+
+                foreach (var reference in _handlerOwnerReferences)
+                {
+                    _handlerTable.Remove(reference);
+                }
+                _handlerOwnerReferences.Clear();
+            }
+        }
+        
         public void Raise(params object[] parameters)
         {
             lock (_locker)
@@ -199,8 +200,7 @@ namespace System.Events
                 }
             }
         }
-
-
+        
         /// <summary>
         /// 获取当前类型的所有实例事件
         /// </summary>

@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace System.Events
 {
@@ -23,43 +24,42 @@ namespace System.Events
         }
 
         /// <summary>
-        /// 注册弱事件中继
+        /// 注册
         /// </summary>
+        /// <param name="owner"></param>
+        /// <param name="eventName"></param>
+        /// <param name="raise"></param>
         /// <typeparam name="T"></typeparam>
-        /// <param name="owner">事件拥有者</param>
-        /// <param name="e">事件名称</param>
-        /// <param name="register">
-        /// 向事件源注册一个调用 <see cref="WeakEventRelay.Raise"/> 的事件处理
-        /// </param>
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
-        public static WeakEventRelay RegisterWeakEvent<T>(
-            this T owner,    
-            EventInfo e,
-            RegisterWeakEventHandler<T> register = null)
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public static IWeakEventRelay RegisterWeakEvent<T>(
+            this T owner,   
+            string eventName,
+            Action<T, IWeakEventRelay> raise = null)
         {
+            var builder = new StringBuilder();
+            builder.AppendFormat("注册 {0}：", nameof(WeakEventRelay));
             if (null == owner)
             {
                 throw new ArgumentNullException(nameof(owner));
             }
 
+            var events = WeakEventRelay.GetEvents<T>();
+            var e = events.SingleOrDefault(p => p.Name == eventName);
+
             if (null == e)
             {
-                throw new ArgumentNullException(nameof(e));
+                builder.Append($"对象 {nameof(T)} 中不存在该事件 {eventName}");
+                throw new ArgumentNullException(eventName, builder.ToString());
             }
-
-            //  不允许静态事件
+            
             if (e.AddMethod.IsStatic)
             {
-                throw new ArgumentOutOfRangeException(nameof(e));
+                builder.Append("不支持静态事件");
+                throw new ArgumentOutOfRangeException(nameof(e), builder.ToString());
             }
-
-            // 检查事件源是否包含当前事件
-            if (WeakEventRelay.GetEvents<T>().All(p => p.Name != e.Name))
-            {
-                throw new ArgumentOutOfRangeException(nameof(e));
-            }
-
+            
             lock (_locker)
             {
                 if (!_relayTable.TryGetValue(owner, out var relays))
@@ -73,43 +73,41 @@ namespace System.Events
                 {
                     relay = new WeakEventRelay(owner, e);
                     relays.Add(relay);
-                    register?.Invoke(owner, relay);
+                    raise?.Invoke(owner, relay);
                 }
 
                 return relay;
             }
         }
-            
-        /// <summary>
-        /// 获取已注册的弱事件中继
-        /// </summary>
-        /// <param name="owner"></param>
-        /// <param name="e"></param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
-        /// <exception cref="ArgumentOutOfRangeException"></exception>
-        /// <exception cref="InvalidOperationException"></exception>
-        public static WeakEventRelay GetRelay(object owner, EventInfo e)
-        {
-            lock (_locker)
-            {
-                if (null == owner)
-                {
-                    throw new ArgumentNullException(nameof(owner));
-                }
-                if (!_relayTable.TryGetValue(owner, out var relays))
-                {
-                    throw new ArgumentOutOfRangeException(nameof(e));
-                }
-                var relay = relays.SingleOrDefault(p => p._e == e);
-                if (null == relay)
-                {
-                    throw new InvalidOperationException();
-                }
+        
+        //public static IWeakEventRelay GetWeakEventRelay<T>(T owner, string eventName)
+        //{           
+        //    var builder = new StringBuilder();
+        //    builder.AppendFormat("获取 {0}：", nameof(WeakEventRelay));
+        //    lock (_locker)
+        //    {
+        //        if (null == owner)
+        //        {
+        //            builder.Append("事件拥有者不能为空");
+        //            throw new ArgumentNullException(nameof(owner), builder.ToString());
+        //        }
+        //        var events = WeakEventRelay.GetEvents<T>();
+        //        var e = events.SingleOrDefault(p => p.Name == eventName);
+        //        if (null == e)
+        //        {
+        //            builder.Append($"对象 {nameof(T)} 中不存在该事件 {eventName}");
+        //            throw new ArgumentNullException(eventName, builder.ToString());
+        //        }
+        //        if (!_relayTable.TryGetValue(owner, out var relays))
+        //        {
+        //            builder.AppendFormat("事件 {0} 未注册 {1}", eventName, nameof(WeakEventRelay));
+        //            throw new ArgumentOutOfRangeException(nameof(e), builder.ToString());
+        //        }
+        //        var relay = relays.Single(p => p._e == e);
+        //        return relay;
+        //    }
+        //}
 
-                return relay;
-            }
-        }
 
     }
 }
