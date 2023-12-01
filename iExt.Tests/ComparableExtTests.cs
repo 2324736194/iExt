@@ -17,7 +17,7 @@ namespace System.Tests
             var minValue = 1;
             var maxValue = 100;
             var value = 10;
-            Console.WriteLine("测试目标：minValue < value < maxValue");
+            Console.WriteLine("测试目标：minValue <= value <= maxValue");
             Console.WriteLine("测试内容：测试值在指定范围之内");
             Console.WriteLine("- 最小值 {0}", minValue);
             Console.WriteLine("- 最大值 {0}", maxValue);
@@ -35,7 +35,7 @@ namespace System.Tests
             Console.WriteLine("- 最小值 {0}", minValue);
             Console.WriteLine("- 最大值 {0}", maxValue);
             Console.WriteLine("- 测试值 {0}", minValue);
-            Assert.IsFalse(minValue.Between(minValue, maxValue));
+            Assert.IsFalse(minValue.Between(minValue, maxValue,false,false));
         }
 
         [TestMethod()]
@@ -48,7 +48,7 @@ namespace System.Tests
             Console.WriteLine("- 最小值： {0}", minValue);
             Console.WriteLine("- 最大值： {0}", maxValue);
             Console.WriteLine("- 测试值： {0}", maxValue);
-            Assert.IsFalse(maxValue.Between(minValue, maxValue));
+            Assert.IsFalse(maxValue.Between(minValue, maxValue,false,false));
         }
 
         [TestMethod()]
@@ -61,7 +61,7 @@ namespace System.Tests
             Console.WriteLine("- 最小值： {0}", minValue);
             Console.WriteLine("- 最大值： {0}", maxValue);
             Console.WriteLine("- 测试值： {0}", minValue);
-            Assert.IsTrue(minValue.Between(minValue, maxValue,true));
+            Assert.IsTrue(minValue.Between(minValue, maxValue));
         }
 
         [TestMethod()]
@@ -74,7 +74,7 @@ namespace System.Tests
             Console.WriteLine("- 最小值： {0}", minValue);
             Console.WriteLine("- 最大值： {0}", maxValue);
             Console.WriteLine("- 测试值： {0}", maxValue);
-            Assert.IsTrue(maxValue.Between(minValue, maxValue, true, true));
+            Assert.IsTrue(maxValue.Between(minValue, maxValue ));
         }
     }
 }

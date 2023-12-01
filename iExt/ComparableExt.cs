@@ -15,12 +15,12 @@
         /// <param name="value">数据</param>
         /// <param name="minValue">最小值</param>
         /// <param name="maxValue">最大值</param>
-        /// <param name="isIncludeMin"> 是否包含最小值，默认不包含最小值 </param>
-        /// <param name="isIncludeMax">是否包含最大值，默认不包含最大值</param>
+        /// <param name="includeMin"> 是否包含最小值，默认包含最小值 </param>
+        /// <param name="includeMax">是否包含最大值，默认包含最大值</param>
         /// <returns></returns>
         public static bool Between<T>(this T value, T minValue, T maxValue,
-            bool isIncludeMin = false,
-            bool isIncludeMax = false)
+            bool includeMin = true,
+            bool includeMax = true)
             where T : IComparable
         {
             if (minValue.CompareTo(maxValue) > 0)
@@ -28,8 +28,8 @@
                 throw new ArgumentException("最小值不能大于最大值", nameof(minValue));
             }
 
-            var result1 = isIncludeMin ? minValue.CompareTo(value) <= 0 : minValue.CompareTo(value) < 0;
-            var result2 = isIncludeMax ? value.CompareTo(maxValue) <= 0 : value.CompareTo(maxValue) < 0;
+            var result1 = includeMin ? minValue.CompareTo(value) <= 0 : minValue.CompareTo(value) < 0;
+            var result2 = includeMax ? value.CompareTo(maxValue) <= 0 : value.CompareTo(maxValue) < 0;
             return result1 && result2;
         }
     }
