@@ -26,9 +26,9 @@ namespace System.Events
         /// <summary>
         /// 注册
         /// </summary>
-        /// <param name="owner"></param>
-        /// <param name="eventName"></param>
-        /// <param name="raise"></param>
+        /// <param name="owner">事件拥有者</param>
+        /// <param name="eventName">事件名称</param>
+        /// <param name="raise">事件调用委托</param>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
