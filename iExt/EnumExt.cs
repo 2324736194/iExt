@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 
 namespace System
 {
     /// <summary>
-    /// 仅针对 <see cref="Enum"/> 的扩展
+    /// 枚举扩展
     /// </summary>
     public static class EnumExt
     {
@@ -18,6 +16,10 @@ namespace System
         public static T ToEnum<T>(this object value)
             where T : Enum
         {
+            if (value is string stringValue)
+            {
+                return ToEnum<T>(stringValue);
+            }
             var enumType = typeof(T);
             if (Enum.IsDefined(enumType, value))
             {
@@ -27,7 +29,30 @@ namespace System
                 }
             }
 
-            throw new Exception($"无法将 {value} 转换为 {enumType.FullName} 的枚举成员");
+            throw new ArgumentException($"无法将 {value} 转换为 {enumType.FullName} 的枚举成员", nameof(value));
+        }
+
+        /// <summary>
+        /// 将字符串转换成枚举，默认忽略大小写
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="ignoreCase"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        public static T ToEnum<T>(this string value, bool ignoreCase = true)
+            where T : struct
+        {
+            var enumType = typeof(T);
+            if (enumType.IsEnum)
+            {
+                if (Enum.TryParse(value, ignoreCase, out T result))
+                {
+                    return result;
+                }
+            }
+
+            throw new ArgumentException($"无法将 {value} 转换为 {enumType.FullName} 的枚举成员", nameof(value));
         }
 
         /// <summary>
@@ -38,32 +63,6 @@ namespace System
             where T : Enum
         {
             return Enum.GetValues(typeof(T)).OfType<T>().ToList();
-        }
-
-        /// <summary>
-        /// 获取枚举特性
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="e"></param>
-        /// <returns></returns>
-        public static T GetAttribute<T>(this Enum e)
-            where T : Attribute
-        {
-            var name = e.ToString();
-            var field = e.GetType().GetField(name);
-
-            if (null == field)
-            {
-                throw new NotImplementedException($"[{name}] 未找到对应的枚举字段信息，请检查代码逻辑。");
-            }
-
-            var attribute = field.GetCustomAttribute<T>();
-            if (null == attribute)
-            {
-                throw new NotImplementedException($"[{typeof(T).Name}] 未找到对应的特性。");
-            }
-
-            return attribute;
         }
     }
 }
