@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -7,7 +9,7 @@ using System.Text;
 namespace System.Events
 {
     /// <summary>
-    /// 
+    /// 弱事件扩展
     /// </summary>
     public static class WeakEventRelayExt
     {
@@ -17,7 +19,7 @@ namespace System.Events
         /// 外部弱事件中继表格
         /// </summary>
         private static readonly ConditionalWeakTable<object, List<WeakEventRelay>> _relayTable;
-        
+
         static WeakEventRelayExt()
         {
             _relayTable = new ConditionalWeakTable<object, List<WeakEventRelay>>();
@@ -28,15 +30,15 @@ namespace System.Events
         /// </summary>
         /// <param name="owner">事件拥有者</param>
         /// <param name="eventName">事件名称</param>
-        /// <param name="raise">事件调用委托</param>
+        /// <param name="register">事件调用委托</param>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static IWeakEventRelay RegisterWeakEvent<T>(
-            this T owner,   
+            this T owner,
             string eventName,
-            RaiseWeakEvent<T> raise = null)
+            RegisterEvent<T> register = null)
         {
             var builder = new StringBuilder();
             builder.AppendFormat("注册 {0}：", nameof(WeakEventRelay));
@@ -53,13 +55,13 @@ namespace System.Events
                 builder.Append($"对象 {nameof(T)} 中不存在该事件 {eventName}");
                 throw new ArgumentNullException(eventName, builder.ToString());
             }
-            
+
             if (e.AddMethod.IsStatic)
             {
                 builder.Append("不支持静态事件");
                 throw new ArgumentOutOfRangeException(nameof(e), builder.ToString());
             }
-            
+
             lock (_locker)
             {
                 if (!_relayTable.TryGetValue(owner, out var relays))
@@ -73,13 +75,13 @@ namespace System.Events
                 {
                     relay = new WeakEventRelay(owner, e);
                     relays.Add(relay);
-                    raise?.Invoke(owner, relay);
+                    register?.Invoke(owner, relay);
                 }
 
                 return relay;
             }
         }
-        
+
         //public static IWeakEventRelay GetWeakEventRelay<T>(T owner, string eventName)
         //{           
         //    var builder = new StringBuilder();
@@ -107,7 +109,6 @@ namespace System.Events
         //        return relay;
         //    }
         //}
-
-
     }
+    
 }

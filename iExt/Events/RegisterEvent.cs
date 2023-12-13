@@ -6,5 +6,5 @@
     /// <typeparam name="T"></typeparam>
     /// <param name="owner"></param>
     /// <param name="relay"></param>
-    public delegate void RaiseWeakEvent<in T>(T owner, IWeakEventRelay relay);
+    public delegate void RegisterEvent<in T>(T owner, IWeakEventRelay relay);
 }

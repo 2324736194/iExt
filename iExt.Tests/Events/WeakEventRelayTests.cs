@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Events;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -62,7 +63,7 @@ namespace System.Events
             var owner = new EventOwner();
             var count = 30;
             var eventName = nameof(EventOwner.Outside);
-            var relay = owner.RegisterWeakEvent(eventName, RaiseOutside);
+            var relay = owner.RegisterWeakEvent(eventName, RegisterOutside);
             var subscribers = new List<EventSubscriber>();
             for (int i = 0; i < count; i++)
             {
@@ -100,7 +101,7 @@ namespace System.Events
             var owner = new EventOwner();
             var count = 30;
             var eventName = nameof(EventOwner.Outside);
-            var relay = owner.RegisterWeakEvent(eventName, RaiseOutside);
+            var relay = owner.RegisterWeakEvent(eventName, RegisterOutside);
             var subscribers = new List<EventSubscriber>();
             for (int i = 0; i < count; i++)
             {
@@ -119,6 +120,7 @@ namespace System.Events
                 relay.Remove(new EventHandler(subscriber.Handler));
                 relay.Remove(new EventHandler(EventSubscriber.StaticHandler));
             }
+            owner.RaiseOutside();
             Console.WriteLine("测试目标：常规方式创建的事件，弱事件注册");
             Console.WriteLine("测试内容：事件注销后，不触发调用");
             Assert.AreEqual(0, EventSubscriber.HandlerCount);
@@ -130,7 +132,7 @@ namespace System.Events
             var owner = new EventOwner();
             var count = 30;
             var eventName = nameof(EventOwner.Outside);
-            var relay = owner.RegisterWeakEvent(eventName, RaiseOutside);
+            var relay = owner.RegisterWeakEvent(eventName, RegisterOutside);
             var subscribers = new List<EventSubscriber>();
             for (int i = 0; i < count; i++)
             {
@@ -145,22 +147,46 @@ namespace System.Events
             }
 
             relay.Clear();
-
+            owner.RaiseOutside();
             Console.WriteLine("测试目标：常规方式创建的事件，弱事件注册");
             Console.WriteLine("测试内容：事件被清理后，不触发调用");
             Assert.AreEqual(0, EventSubscriber.HandlerCount);
         }
+
+        [TestMethod()]
+        public void Test6()
+        {
+            var owner = new EventOwner();
+            var subscriber = new EventSubscriber();
+            var count = 3;
+            Register(owner, subscriber);
+            Console.WriteLine("测试目标：隐式实现的事件");
+            Console.WriteLine("测试内容：触发隐式事件");
+            for (int i = 0; i < count; i++)
+            {
+                owner.Name = DateTime.Now.ToLongTimeString();
+                Task.Delay(1000).Wait();
+            }
+            Assert.AreEqual(count, EventSubscriber.HandlerCount);
+        }
+
     }
 
     partial class WeakEventRelayTests
     {
+            
+        private void Register(INotifyPropertyChanged eventSource,EventSubscriber subscriber)
+        {
+            eventSource.PropertyChanged += subscriber.PropertyChangedHandler;
+        }
+        
         private async Task GcSubscriber(EventOwner owner)
         {
             await Task.Run(() =>
             {
                 var count = 30;
                 var eventName = nameof(EventOwner.Outside);
-                var relay = owner.RegisterWeakEvent(eventName, RaiseOutside);
+                var relay = owner.RegisterWeakEvent(eventName, RegisterOutside);
                 var subscribers = new List<EventSubscriber>();
                 for (int i = 0; i < count; i++)
                 {
@@ -177,7 +203,7 @@ namespace System.Events
             owner.RaiseOutside();
         }
 
-        private void RaiseOutside(EventOwner owner, IWeakEventRelay relay)
+        private void RegisterOutside(EventOwner owner, IWeakEventRelay relay)
         {
             // 注册 Outside 事件
             // 每个事件仅会注册一次，不会重复注册
@@ -188,9 +214,12 @@ namespace System.Events
             };
         }
 
-        class EventOwner
+        class EventOwner : INotifyPropertyChanged
         {
             private readonly IWeakEventRelay _relayInside;
+            private readonly IWeakEventRelay _relayPropertyChanged;
+
+            private string _name;
 
             /// <summary>
             /// 使用 <see cref="WeakEventRelay"/> 创建的事件
@@ -206,10 +235,30 @@ namespace System.Events
             /// </summary>
             public event EventHandler Outside;
 
+            public string Name
+            {
+                get => _name;
+                set
+                {
+                    _name = value;
+                    _relayPropertyChanged.Raise(this, new PropertyChangedEventArgs(nameof(Name)));
+                }
+            }
+
             public EventOwner()
             {
                 EventSubscriber.HandlerCount = 0;
                 _relayInside = this.RegisterWeakEvent(nameof(Inside));
+                _relayPropertyChanged = GetRelayPropertyChanged();
+            }
+
+            private IWeakEventRelay GetRelayPropertyChanged()
+            {
+                // 隐式接口实现的事件名称 = 接口类型全称 + 事件名称
+                var interfaceName = typeof(INotifyPropertyChanged).FullName;
+                var eventName = nameof(INotifyPropertyChanged.PropertyChanged);
+                var name = $"{interfaceName}.{eventName}";
+                return this.RegisterWeakEvent(name);
             }
 
             public void RaiseInside()
@@ -222,11 +271,22 @@ namespace System.Events
                 Outside?.Invoke(this, EventArgs.Empty);
             }
 
+            event PropertyChangedEventHandler INotifyPropertyChanged.PropertyChanged
+            {
+                add => _relayPropertyChanged.Add(value);
+                remove => _relayPropertyChanged.Remove(value);
+            }
         }
 
         class EventSubscriber
         {
             public static int HandlerCount { get; internal set; }
+            
+            public void PropertyChangedHandler(object sender, PropertyChangedEventArgs e)
+            {
+                Console.WriteLine($"{sender}.{e.PropertyName} is Changed" );
+                HandlerCount++;
+            }
 
             public void Handler(object sender, EventArgs e)
             {
