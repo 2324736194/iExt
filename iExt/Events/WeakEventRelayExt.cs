@@ -47,7 +47,7 @@ namespace System.Events
                 throw new ArgumentNullException(nameof(owner));
             }
 
-            var events = WeakEventRelay.GetEvents<T>();
+            var events = WeakEventRelay.GetEvents(owner.GetType());
             var e = events.SingleOrDefault(p => p.Name == eventName);
 
             if (null == e)

@@ -205,11 +205,10 @@ namespace System.Events
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
-        public static IReadOnlyList<EventInfo> GetEvents<T>()
+        public static IReadOnlyList<EventInfo> GetEvents(Type owner)
         {
             lock (_locker)
             {
-                var owner = typeof(T);
                 if (!_eDictionary.ContainsKey(owner))
                 {
                     var bindingAttr = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
