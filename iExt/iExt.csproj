@@ -13,10 +13,4 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
 	</PropertyGroup>
 
-	<ItemGroup>
-	  <Compile Remove="Windows\**" />
-	  <EmbeddedResource Remove="Windows\**" />
-	  <None Remove="Windows\**" />
-	</ItemGroup>
-
 </Project>
