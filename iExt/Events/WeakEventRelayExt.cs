@@ -36,7 +36,7 @@ namespace System.Events
         public static IWeakEventRelay RegisterWeakEvent<T>(
             this T owner,   
             string eventName,
-            Action<T, IWeakEventRelay> raise = null)
+            RaiseWeakEvent<T> raise = null)
         {
             var builder = new StringBuilder();
             builder.AppendFormat("注册 {0}：", nameof(WeakEventRelay));
