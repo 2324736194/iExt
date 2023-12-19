@@ -3,14 +3,18 @@
 	<PropertyGroup>
 		<TargetFramework>net461</TargetFramework>
 		<RootNamespace>System</RootNamespace>
-		<Revision>$([System.DateTime]::Now.ToString("yyyy.MMdd.HHmm"))</Revision>
-		<Version>$(Revision)-preview</Version>
-		<RestoreProjectStyle>PackageReference</RestoreProjectStyle>
-		<GenerateDocumentationFile>true</GenerateDocumentationFile>
-		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-		<Authors>iCode</Authors>
+    <Revision>$([System.DateTime]::Now.ToString("yyyy.MMdd.HHmm"))</Revision>
+    <Version>$(Revision)-preview</Version>
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PackageOutputPath>$(USERPROFILE)\.nuget\packages_H</PackageOutputPath>
 	</PropertyGroup>
+
+	<ItemGroup>
+	  <Folder Include="Properties\" />
+	</ItemGroup>
 
 </Project>
