@@ -26,7 +26,7 @@ namespace System.Events
         }
 
         /// <summary>
-        /// 注册
+        /// 注册弱事件
         /// </summary>
         /// <param name="owner">事件拥有者</param>
         /// <param name="eventName">事件名称</param>

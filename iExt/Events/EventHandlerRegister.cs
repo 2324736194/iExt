@@ -3,9 +3,9 @@
 namespace System.Events
 {
     /// <summary>
-    /// 仅针对于委托类型参数与 <see cref="EventHandler"/> 相同的事件
+    /// 注册委托类型为 <see cref="EventHandler"/> 的事件
     /// </summary>
-    public class WeakEventRegister : IWeakEventRegister
+    public class EventHandlerRegister : IWeakEventRegister
     {
         private WeakReference<IWeakEventRelay> _relay;
 

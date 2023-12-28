@@ -64,7 +64,7 @@ namespace System.Events
             var count = 30;
             var eventName = nameof(EventOwner.Outside);
             var relay = owner.RegisterWeakEvent(eventName);
-            relay.RegisterRaise(new WeakEventRegister());
+            relay.RegisterRaise(new EventHandlerRegister());
             var subscribers = new List<EventSubscriber>();
             for (int i = 0; i < count; i++)
             {
@@ -103,7 +103,7 @@ namespace System.Events
             var count = 30;
             var eventName = nameof(EventOwner.Outside);
             var relay = owner.RegisterWeakEvent(eventName);
-            relay.RegisterRaise(new WeakEventRegister());
+            relay.RegisterRaise(new EventHandlerRegister());
             var subscribers = new List<EventSubscriber>();
             for (int i = 0; i < count; i++)
             {
@@ -135,7 +135,7 @@ namespace System.Events
             var count = 30;
             var eventName = nameof(EventOwner.Outside);
             var relay = owner.RegisterWeakEvent(eventName);
-            relay.RegisterRaise(new WeakEventRegister());
+            relay.RegisterRaise(new EventHandlerRegister());
             var subscribers = new List<EventSubscriber>();
             for (int i = 0; i < count; i++)
             {
@@ -178,7 +178,7 @@ namespace System.Events
         {
             var owner = new EventOwner();
             var outsideRelay= owner.RegisterWeakEvent(nameof(EventOwner.Outside));
-            outsideRelay.RegisterRaise(new WeakEventRegister());
+            outsideRelay.RegisterRaise(new EventHandlerRegister());
             var handler = default(EventHandler);
             handler = new EventHandler((sender, args) =>
             {
@@ -207,7 +207,7 @@ namespace System.Events
                 var count = 30;
                 var eventName = nameof(EventOwner.Outside);
                 var relay = owner.RegisterWeakEvent(eventName);
-                relay.RegisterRaise(new WeakEventRegister());
+                relay.RegisterRaise(new EventHandlerRegister());
                 var subscribers = new List<EventSubscriber>();
                 for (int i = 0; i < count; i++)
                 {
