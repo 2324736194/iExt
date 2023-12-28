@@ -1,27 +1,31 @@
-﻿using System.Collections.Generic;
+﻿using Microsoft.Win32;
+
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace System.Events
 {
     internal class WeakEventRelay: IWeakEventRelay
     {
-        private static readonly object _locker = new object();
-        private static readonly Dictionary<Type, IReadOnlyList<EventInfo>> _eDictionary;
+        private static readonly Dictionary<Type, IReadOnlyList<EventInfo>> _eventDictionary;
 
-        /// <summary>
-        /// <para>事件拥有者</para>
-        /// </summary>
+        private readonly object _locker;
+        private readonly EventInfo _event;
         private readonly WeakReference _ownerReference;
-        /// <summary>
-        /// <para>中继的事件</para>
-        /// </summary>
-        internal readonly EventInfo _e;
+        private IWeakEventRegister _register;
+        private Delegate _raiseHandler;
+        private bool _registering;
+            
         /// <summary>
         /// <para>事件处理函数拥有者引用</para>
         /// <para>此对象存在的意义是为了方便遍历，因为 <see cref="ConditionalWeakTable{TKey,TValue}"/> 不允许遍历</para>
         /// </summary>
         private readonly HashSet<WeakReference> _handlerOwnerReferences;
+
         /// <summary>
         /// <para>----------------------------------------------------------------------------------------</para>
         /// <para><see cref="ConditionalWeakTable{TKey,TValue}"/> 对象说明</para> 
@@ -36,16 +40,16 @@ namespace System.Events
         /// <para>- 实例函数：事件处理函数为实例函数时，事件处理函数拥有者为实例对象。</para>
         /// <para>- 静态函数：事件处理函数为静态函数时，事件处理函数拥有者为事件源实例对象。</para>
         /// </summary>
-        private readonly ConditionalWeakTable<object, Dictionary<MethodInfo, int>> _handlerTable;
-
+        private readonly ConditionalWeakTable<object, IList<WeakEventMethodInvoke>> _handlerTable;
+        
         /// <summary>
         /// 表示当前事件中继是否能继续使用
         /// </summary>
         public bool IsEnabled => _ownerReference.IsAlive;
-        
+
         static WeakEventRelay()
         {
-            _eDictionary = new Dictionary<Type, IReadOnlyList<EventInfo>>();
+            _eventDictionary = new Dictionary<Type, IReadOnlyList<EventInfo>>();
         }
 
         /// <summary>
@@ -56,17 +60,17 @@ namespace System.Events
         /// <para>- 实例事件拥有者为事件的实例对象</para>
         /// <para>- 静态事件拥有者为事件的声明对象类型</para>
         /// </param>
-        /// <param name="eventInfo">事件名</param>
+        /// <param name="event">事件名</param>
         /// <exception cref="ArgumentNullException"></exception>
-        internal WeakEventRelay(object owner, EventInfo eventInfo)
+        internal WeakEventRelay(object owner, EventInfo @event)
         {
-            _e = eventInfo;
+            _locker = new object();
+            _event = @event;
             _ownerReference = new WeakReference(owner);
             _handlerOwnerReferences = new HashSet<WeakReference>();
-            _handlerTable = new ConditionalWeakTable<object, Dictionary<MethodInfo, int>>();
+            _handlerTable = new ConditionalWeakTable<object, IList<WeakEventMethodInvoke>>();
         }
-
-     
+        
         public void Add(Delegate handler)
         {
             lock (_locker)
@@ -75,40 +79,42 @@ namespace System.Events
                 {
                     return;
                 }
-                HandlerOwnerReferenceClear();
-                var methods = GetHandlerMethods(handler);
-                var handlerMethod = handler.Method;
-                if (!methods.ContainsKey(handlerMethod))
+                AddRaiseHandler();
+                var method = GetMethodInvoke(handler);
+                method.InvokeCount++;
+            }
+        }
+        
+        public void Remove(Delegate handler)
+        {
+            lock (_locker)
+            {
+                if (!IsEnabled)
                 {
-                    methods.Add(handlerMethod, 0);
+                    return;
                 }
-
-                methods[handlerMethod]++;
+                var method = GetMethodInvoke(handler);
+                method.InvokeCount--;
+#if DEBUG
+                Debug.WriteLine("移除弱事件处理函数 {0}", (object)handler.Method.Name);
+#endif
             }
         }
 
         /// <summary>
-        /// 事件处理函数拥有者弱引用清理
-        /// </summary>
-        private void HandlerOwnerReferenceClear()
-        {
-            _handlerOwnerReferences.RemoveWhere(p => p.IsAlive == false);
-        }
-
-        /// <summary>
-        /// 根据注册的事件处理，找到与之对应的事件处理函数字典
+        /// 获取已注册的事件处理函数
         /// </summary>
         /// <param name="handler"></param>
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
-        private Dictionary<MethodInfo, int> GetHandlerMethods(Delegate handler)
-        {
+        private WeakEventMethodInvoke GetMethodInvoke(Delegate handler)
+        {   
             if (null == handler)
-            {
+            {   
                 throw new ArgumentNullException(nameof(handler));
             }
-            if (_e.EventHandlerType != handler.GetType())
+            if (_event.EventHandlerType != handler.GetType())
             {
                 throw new ArgumentOutOfRangeException(nameof(handler));
             }
@@ -120,31 +126,20 @@ namespace System.Events
             {
                 // 首次注册事件时（相对于 handlerOwner）
                 var reference = new WeakReference(handlerOwner);
-                methods = new Dictionary<MethodInfo, int>();
+                methods = new List<WeakEventMethodInvoke>();
                 _handlerOwnerReferences.Add(reference);
                 _handlerTable.Add(handlerOwner, methods);
             }
-
-            return methods;
-        }
-
-        public void Remove(Delegate handler)
-        {
-            lock (_locker)
+            var handlerMethod = handler.Method;
+            var method = methods.SingleOrDefault(p => p.Method == handlerMethod);
+            if (null == method)
             {
-                if (!IsEnabled)
-                {
-                    return;
-                }
-                HandlerOwnerReferenceClear();
-                var methods = GetHandlerMethods(handler);
-                var handlerMethod = handler.Method;
-                if (!methods.ContainsKey(handlerMethod))
-                {
-                    return;
-                }
-                methods[handlerMethod]--;
+                // 首次注册处理函数
+                method = new WeakEventMethodInvoke(handlerMethod);
+                methods.Add(method);
             }
+
+            return method;
         }
 
         public void Clear()
@@ -163,39 +158,118 @@ namespace System.Events
                 _handlerOwnerReferences.Clear();
             }
         }
-        
-        public void Raise(params object[] parameters)
-        {
+
+        public void RegisterRaise(IWeakEventRegister register)
+        {   
+            if (null == register)
+            {
+                throw new ArgumentNullException(nameof(register));
+            }
             lock (_locker)
             {
-                foreach (var reference in _handlerOwnerReferences)
+                if (!IsEnabled)
                 {
-                    if (reference.IsAlive)
-                    {
-                        Invoke(reference.Target, parameters);
-                    }
+                    return;
+                }
+
+                if (null == _register)
+                {
+                    _register = register;
                 }
             }
         }
 
-        /// <summary>
-        /// 调用事件处理函数
-        /// </summary>
-        /// <param name="handlerOwner">事件处理函数拥有者</param>
-        /// <param name="parameters">调用参数</param>
-        private void Invoke(object handlerOwner, object[] parameters)
+        public bool Equals(EventInfo eventInfo)
         {
-            // ReSharper disable PossibleNullReferenceException
-            if (!_handlerTable.TryGetValue(handlerOwner, out var methods))
+            return _event == eventInfo;
+        }
+
+        private void AddRaiseHandler()
+        {
+            if (null == _register)
             {
                 return;
             }
-            foreach (var method in methods)
+
+            if (null == _raiseHandler)
             {
-                var obj = method.Key.IsStatic ? null : handlerOwner;
-                for (int i = 0; i < method.Value; i++)
+                var raiseMethod = _register.GetRegisterMethod(this);
+                var handler = Delegate.CreateDelegate(_event.EventHandlerType, _register, raiseMethod);
+                _raiseHandler = handler;
+            }
+
+            if (_registering)
+            {
+                return;
+            }
+            var target = _ownerReference.Target;
+            _event.AddEventHandler(target, _raiseHandler);
+            _registering = true;
+        }
+
+        private void RemoveRaiseHandler()
+        {
+            if (null == _raiseHandler)
+            {
+                return;
+            }
+            var target = _ownerReference.Target;
+            _event.RemoveEventHandler(target, _raiseHandler);
+            _registering = false;
+        }
+
+        public void Raise(params object[] parameters)
+        {
+            lock (_locker)
+            {
+                var references = _handlerOwnerReferences.ToList();
+                foreach (var reference in references)
                 {
-                    method.Key.Invoke(obj, parameters);
+                    if (reference.IsAlive)
+                    {
+                        var handlerOwner = reference.Target;
+                        // ReSharper disable PossibleNullReferenceException
+                        if (!_handlerTable.TryGetValue(handlerOwner, out var invokes))
+                        {
+                            continue;
+                        }
+
+                        foreach (var invoke in invokes.ToArray())
+                        {
+                            if (invoke.InvokeCount == 0)
+                            {
+                                invokes.Remove(invoke);
+                                continue;
+                            }
+                            var obj = invoke.Method.IsStatic ? null : handlerOwner;
+                            for (int i = 0; i < invoke.InvokeCount; i++)
+                            {
+                                invoke.Method.Invoke(obj, parameters);
+                            }
+                        }
+
+                        if (invokes.Count == 0)
+                        {
+                            _handlerTable.Remove(handlerOwner);
+                            _handlerOwnerReferences.Remove(reference);
+#if DEBUG
+                            Debug.WriteLine("移除弱事件订阅者 {0}", handlerOwner);
+#endif
+                        }
+                    }
+                    else
+                    {
+                        _handlerOwnerReferences.Remove(reference);
+                   
+                    }
+                }
+                // 注销事件调用
+                if (_handlerOwnerReferences.Count == 0)
+                {
+                    RemoveRaiseHandler();
+#if DEBUG
+                    Debug.WriteLine("注销弱事件的事件调用");
+#endif
                 }
             }
         }
@@ -203,21 +277,19 @@ namespace System.Events
         /// <summary>
         /// 获取当前类型的所有实例事件
         /// </summary>
-        /// <typeparam name="T"></typeparam>
+        /// <param name="owner"></param>
         /// <returns></returns>
         public static IReadOnlyList<EventInfo> GetEvents(Type owner)
         {
-            lock (_locker)
+            if (!_eventDictionary.ContainsKey(owner))
             {
-                if (!_eDictionary.ContainsKey(owner))
-                {
-                    var bindingAttr = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-                    var events = owner.GetEvents(bindingAttr);
-                    _eDictionary.Add(owner, events);
-                }
-
-                return _eDictionary[owner];
+                var bindingAttr = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                var events = owner.GetEvents(bindingAttr);
+                _eventDictionary.Add(owner, events);
             }
+
+            return _eventDictionary[owner];
         }
     }
-}
+    
+}   

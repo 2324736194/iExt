@@ -1,4 +1,6 @@
-﻿namespace System.Events
+﻿using System.Reflection;
+
+namespace System.Events
 {
     /// <summary>
     /// <para>弱事件中继</para>
@@ -30,5 +32,18 @@
         /// 清理事件处理
         /// </summary>
         void Clear();
+
+        /// <summary>
+        /// 注册弱事件的事件调用
+        /// </summary>
+        /// <param name="register"></param>
+        void RegisterRaise(IWeakEventRegister register);
+            
+        /// <summary>
+        /// 比较弱事件的监听事件
+        /// </summary>
+        /// <param name="eventInfo"></param>
+        /// <returns></returns>
+        bool Equals(EventInfo eventInfo);
     }
 }

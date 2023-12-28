@@ -63,7 +63,8 @@ namespace System.Events
             var owner = new EventOwner();
             var count = 30;
             var eventName = nameof(EventOwner.Outside);
-            var relay = owner.RegisterWeakEvent(eventName, RegisterOutside);
+            var relay = owner.RegisterWeakEvent(eventName);
+            relay.RegisterRaise(new WeakEventRegister());
             var subscribers = new List<EventSubscriber>();
             for (int i = 0; i < count; i++)
             {
@@ -101,7 +102,8 @@ namespace System.Events
             var owner = new EventOwner();
             var count = 30;
             var eventName = nameof(EventOwner.Outside);
-            var relay = owner.RegisterWeakEvent(eventName, RegisterOutside);
+            var relay = owner.RegisterWeakEvent(eventName);
+            relay.RegisterRaise(new WeakEventRegister());
             var subscribers = new List<EventSubscriber>();
             for (int i = 0; i < count; i++)
             {
@@ -132,7 +134,8 @@ namespace System.Events
             var owner = new EventOwner();
             var count = 30;
             var eventName = nameof(EventOwner.Outside);
-            var relay = owner.RegisterWeakEvent(eventName, RegisterOutside);
+            var relay = owner.RegisterWeakEvent(eventName);
+            relay.RegisterRaise(new WeakEventRegister());
             var subscribers = new List<EventSubscriber>();
             for (int i = 0; i < count; i++)
             {
@@ -170,6 +173,23 @@ namespace System.Events
             Assert.AreEqual(count, EventSubscriber.HandlerCount);
         }
 
+        [TestMethod()]  
+        public void Test7()
+        {
+            var owner = new EventOwner();
+            var outsideRelay= owner.RegisterWeakEvent(nameof(EventOwner.Outside));
+            outsideRelay.RegisterRaise(new WeakEventRegister());
+            var handler = default(EventHandler);
+            handler = new EventHandler((sender, args) =>
+            {
+                outsideRelay.Remove(handler);
+            });
+            outsideRelay.Add(handler);
+            owner.RaiseOutside();
+            owner.RaiseOutside();
+            Console.WriteLine("测试目标：{0} 移除事件处理", nameof(IWeakEventRelay));
+            Console.WriteLine("测试内容：在触发的事件处理函数中注销事件处理");
+        }
     }
 
     partial class WeakEventRelayTests
@@ -186,7 +206,8 @@ namespace System.Events
             {
                 var count = 30;
                 var eventName = nameof(EventOwner.Outside);
-                var relay = owner.RegisterWeakEvent(eventName, RegisterOutside);
+                var relay = owner.RegisterWeakEvent(eventName);
+                relay.RegisterRaise(new WeakEventRegister());
                 var subscribers = new List<EventSubscriber>();
                 for (int i = 0; i < count; i++)
                 {
@@ -202,18 +223,7 @@ namespace System.Events
             GC.Collect(0);
             owner.RaiseOutside();
         }
-
-        private void RegisterOutside(EventOwner owner, IWeakEventRelay relay)
-        {
-            // 注册 Outside 事件
-            // 每个事件仅会注册一次，不会重复注册
-            owner.Outside += (sender, args) =>
-            {
-                // 触发弱事件处理
-                relay.Raise(sender, args);
-            };
-        }
-
+        
         class EventOwner : INotifyPropertyChanged
         {
             private readonly IWeakEventRelay _relayInside;
