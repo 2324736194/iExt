@@ -22,8 +22,8 @@ namespace System.Linq
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
-        public static IEnumerable<T> Slice<T>(this IEnumerable<T> source, uint startIndex, uint size)
-        {
+        public static IReadOnlyList<T> Slice<T>(this IEnumerable<T> source, int startIndex, int size)
+        {   
             if (source == null)
             {
                 throw new ArgumentNullException(nameof(source));
